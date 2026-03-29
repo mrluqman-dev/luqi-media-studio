@@ -37,11 +37,11 @@ const Editor = () => {
     { time: "00:00:00", message: "System initialized", type: "system" },
     { time: "00:00:00", message: "Ready for processing...", type: "system" },
   ]);
-  const [terminalSteps] = useState([
-    { emoji: "🎙️", name: "Transcribing Audio", progress: 0, time: "00:00", status: "pending" as const },
-    { emoji: "✂️", name: "Cutting Into Scenes", progress: 0, time: "00:00", status: "pending" as const },
-    { emoji: "🖼️", name: "Matching Images", progress: 0, time: "00:00", status: "pending" as const },
-    { emoji: "🎬", name: "Rendering Video", progress: 0, time: "00:00", status: "pending" as const },
+  const [terminalSteps] = useState<{ emoji: string; name: string; progress: number; time: string; status: "pending" | "processing" | "done" | "failed" }[]>([
+    { emoji: "🎙️", name: "Transcribing Audio", progress: 0, time: "00:00", status: "pending" },
+    { emoji: "✂️", name: "Cutting Into Scenes", progress: 0, time: "00:00", status: "pending" },
+    { emoji: "🖼️", name: "Matching Images", progress: 0, time: "00:00", status: "pending" },
+    { emoji: "🎬", name: "Rendering Video", progress: 0, time: "00:00", status: "pending" },
   ]);
   const [scenes] = useState<Scene[]>([]);
   const [steps] = useState([
