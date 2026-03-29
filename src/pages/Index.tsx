@@ -1,48 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface Settings {
   apiKey: string;
-  apiThreads: number;
-  ffmpegThreads: number;
-  resolution: string;
-  fps: string;
-  quality: string;
+  transcriptionModel: string;
+  sceneCuttingModel: string;
+  imageMatchingModel: string;
+  theme: string;
+  autoSave: boolean;
+  notifications: boolean;
 }
 
 const defaultSettings: Settings = {
   apiKey: "",
-  apiThreads: 3,
-  ffmpegThreads: 4,
-  resolution: "1080p",
-  fps: "30",
-  quality: "Balanced CRF17",
+  transcriptionModel: "whisper-large-v3",
+  sceneCuttingModel: "llama-3.3-70b-versatile",
+  imageMatchingModel: "llama-3.3-70b-versatile",
+  theme: "Dark",
+  autoSave: true,
+  notifications: true,
 };
 
 const Index = () => {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<Settings>(() => {
     const saved = localStorage.getItem("luqi-settings");
-    return saved ? JSON.parse(saved) : defaultSettings;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...defaultSettings, ...parsed };
+    }
+    return defaultSettings;
   });
   const [showPassword, setShowPassword] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "failed">("idle");
-  const [activePreset, setActivePreset] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (settings.apiThreads === 2 && settings.ffmpegThreads === 2) setActivePreset("safe");
-    else if (settings.apiThreads === 3 && settings.ffmpegThreads === 4) setActivePreset("balanced");
-    else if (settings.apiThreads === 5 && settings.ffmpegThreads === 8) setActivePreset("max");
-    else setActivePreset(null);
-  }, [settings.apiThreads, settings.ffmpegThreads]);
 
   const handleSave = () => {
     localStorage.setItem("luqi-settings", JSON.stringify(settings));
-  };
-
-  const handleReset = () => {
-    setSettings(defaultSettings);
-    setConnectionStatus("idle");
   };
 
   const handleTestConnection = () => {
@@ -53,27 +46,33 @@ const Index = () => {
     }
   };
 
-  const applyPreset = (preset: string) => {
-    if (preset === "safe") setSettings(s => ({ ...s, apiThreads: 2, ffmpegThreads: 2 }));
-    else if (preset === "balanced") setSettings(s => ({ ...s, apiThreads: 3, ffmpegThreads: 4 }));
-    else if (preset === "max") setSettings(s => ({ ...s, apiThreads: 5, ffmpegThreads: 8 }));
-  };
-
-  const PillToggle = ({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) => (
-    <div className="flex gap-2 mt-1.5">
-      {options.map(opt => (
-        <button
-          key={opt}
-          onClick={() => onChange(opt)}
-          className={`px-3 py-1.5 rounded-full text-xs transition-all duration-200 ${
-            value === opt
-              ? "bg-primary text-primary-foreground"
-              : "bg-card border border-border text-muted-foreground hover:border-primary/50"
-          }`}
+  const ModelRow = ({ emoji, label, value, options, onChange }: {
+    emoji: string; label: string; value: string; options: string[]; onChange: (v: string) => void;
+  }) => (
+    <div className="flex items-center justify-between py-3 border-b border-border">
+      <span className="text-[13px] text-muted-foreground">{emoji} {label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="appearance-none bg-background border border-border rounded-full px-3 py-1.5 pr-7 text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
         >
-          {opt}
-        </button>
-      ))}
+          {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px] pointer-events-none">▼</span>
+      </div>
+    </div>
+  );
+
+  const ToggleSwitch = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+    <div className="flex items-center justify-between py-2.5">
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`w-10 h-5 rounded-full transition-all duration-200 relative ${checked ? "bg-primary" : "bg-secondary"}`}
+      >
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-foreground transition-transform duration-200 ${checked ? "left-[22px]" : "left-0.5"}`} />
+      </button>
     </div>
   );
 
@@ -119,7 +118,7 @@ const Index = () => {
             <h3 className="text-lg font-bold text-foreground mt-3">Audio To Video</h3>
             <p className="text-sm text-muted-foreground mt-2">AI Video Generation from Images + Audio</p>
             <div className="mt-4">
-              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full" style={{ background: "rgba(35,209,96,0.15)", color: "#23d160" }}>
+              <span className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full" style={{ background: "rgba(35,209,96,0.15)", color: "hsl(var(--success))" }}>
                 ● Available
               </span>
             </div>
@@ -161,75 +160,64 @@ const Index = () => {
             {connectionStatus === "failed" && <p className="text-xs text-destructive mt-1.5">❌ Connection failed</p>}
           </div>
 
-          {/* Performance */}
+          {/* AI Models */}
           <div className="mb-6">
             <div className="border-l-[3px] border-primary pl-2.5 mb-4">
-              <h3 className="text-sm font-bold text-foreground">Performance</h3>
+              <h3 className="text-sm font-bold text-foreground">AI Models</h3>
             </div>
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <label className="text-xs text-muted-foreground">API Threads</label>
-                <span className="text-xs bg-secondary text-foreground px-2 py-0.5 rounded-full">{settings.apiThreads}</span>
-              </div>
-              <input
-                type="range" min={1} max={5} value={settings.apiThreads}
-                onChange={e => setSettings(s => ({ ...s, apiThreads: +e.target.value }))}
-                className="w-full accent-primary h-1.5"
-                style={{ accentColor: "#2d8cf0" }}
-              />
-            </div>
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <label className="text-xs text-muted-foreground">FFmpeg Threads</label>
-                <span className="text-xs bg-secondary text-foreground px-2 py-0.5 rounded-full">{settings.ffmpegThreads}</span>
-              </div>
-              <input
-                type="range" min={1} max={8} value={settings.ffmpegThreads}
-                onChange={e => setSettings(s => ({ ...s, ffmpegThreads: +e.target.value }))}
-                className="w-full h-1.5"
-                style={{ accentColor: "#2d8cf0" }}
-              />
-            </div>
-            <div className="flex gap-2">
-              {[
-                { key: "safe", label: "🐢 Safe" },
-                { key: "balanced", label: "⚡ Balanced" },
-                { key: "max", label: "🚀 Max" },
-              ].map(p => (
-                <button
-                  key={p.key}
-                  onClick={() => applyPreset(p.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs transition-all duration-200 ${
-                    activePreset === p.key
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border text-muted-foreground hover:border-primary/50"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <ModelRow
+              emoji="🎙️" label="Audio Transcription" value={settings.transcriptionModel}
+              options={["whisper-large-v3", "whisper-large-v3-turbo", "distil-whisper-large-v3-en"]}
+              onChange={v => setSettings(s => ({ ...s, transcriptionModel: v }))}
+            />
+            <ModelRow
+              emoji="✂️" label="Scene Cutting" value={settings.sceneCuttingModel}
+              options={["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"]}
+              onChange={v => setSettings(s => ({ ...s, sceneCuttingModel: v }))}
+            />
+            <ModelRow
+              emoji="🖼️" label="Image Matching" value={settings.imageMatchingModel}
+              options={["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "mixtral-8x7b-32768"]}
+              onChange={v => setSettings(s => ({ ...s, imageMatchingModel: v }))}
+            />
           </div>
 
-          {/* Video Defaults */}
+          {/* App Settings */}
           <div className="mb-6">
             <div className="border-l-[3px] border-primary pl-2.5 mb-4">
-              <h3 className="text-sm font-bold text-foreground">Video Defaults</h3>
+              <h3 className="text-sm font-bold text-foreground">App Settings</h3>
             </div>
-            <label className="text-xs text-muted-foreground">Resolution</label>
-            <PillToggle options={["720p", "1080p", "4K"]} value={settings.resolution} onChange={v => setSettings(s => ({ ...s, resolution: v }))} />
-            <label className="text-xs text-muted-foreground mt-3 block">FPS</label>
-            <PillToggle options={["24", "30", "60"]} value={settings.fps} onChange={v => setSettings(s => ({ ...s, fps: v }))} />
-            <label className="text-xs text-muted-foreground mt-3 block">Quality</label>
-            <PillToggle options={["Max CRF15", "Balanced CRF17", "Compressed CRF20"]} value={settings.quality} onChange={v => setSettings(s => ({ ...s, quality: v }))} />
+            <div className="flex items-center justify-between py-2.5">
+              <span className="text-[13px] text-muted-foreground">Theme:</span>
+              <div className="flex gap-2">
+                {["Dark", "Light"].map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSettings(s => ({ ...s, theme: t }))}
+                    className={`px-3 py-1.5 rounded-full text-xs transition-all duration-200 ${
+                      settings.theme === t
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card border border-border text-muted-foreground hover:border-primary/50"
+                    }`}
+                  >
+                    {t} {settings.theme === t && "✓"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ToggleSwitch label="Auto Save:" checked={settings.autoSave} onChange={v => setSettings(s => ({ ...s, autoSave: v }))} />
+            <ToggleSwitch label="Notifications:" checked={settings.notifications} onChange={v => setSettings(s => ({ ...s, notifications: v }))} />
           </div>
 
-          {/* Save Buttons */}
+          {/* Buttons */}
           <button onClick={handleSave} className="w-full py-3 rounded-lg bg-success text-success-foreground font-bold text-sm transition-all duration-200 hover:brightness-110">
-            💾 Save Settings
+            💾 Save API Settings
           </button>
-          <button onClick={handleReset} className="w-full py-3 rounded-lg border border-border text-muted-foreground text-sm mt-2 transition-all duration-200 hover:border-muted-foreground">
-            🔄 Reset Defaults
+          <button
+            onClick={() => navigate("/settings")}
+            className="w-full py-3 rounded-lg border border-primary text-primary font-bold text-sm mt-2 transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+          >
+            ⚙️ Advanced Settings →
           </button>
         </div>
       </div>
