@@ -7,6 +7,12 @@ interface LogEntry {
   type: "default" | "success" | "error" | "processing" | "info";
 }
 
+interface TerminalLogEntry {
+  time: string;
+  message: string;
+  type: "success" | "error" | "processing" | "info" | "system";
+}
+
 interface Scene {
   id: number;
   start: string;
@@ -17,7 +23,7 @@ interface Scene {
 
 const Editor = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"progress" | "logs" | "scenes">("progress");
+  const [activeTab, setActiveTab] = useState<"progress" | "logs" | "scenes" | "terminal">("progress");
   const [threads, setThreads] = useState(4);
   const [outputPath, setOutputPath] = useState("");
   const [imagesFolder, setImagesFolder] = useState("");
@@ -27,6 +33,16 @@ const Editor = () => {
   const [transition, setTransition] = useState("Fade");
   const [zoomEffect, setZoomEffect] = useState("Mix");
   const [logs, setLogs] = useState<LogEntry[]>([{ time: "00:00", message: "Ready to start...", type: "default" }]);
+  const [terminalLogs, setTerminalLogs] = useState<TerminalLogEntry[]>([
+    { time: "00:00:00", message: "System initialized", type: "system" },
+    { time: "00:00:00", message: "Ready for processing...", type: "system" },
+  ]);
+  const [terminalSteps] = useState([
+    { emoji: "🎙️", name: "Transcribing Audio", progress: 0, time: "00:00", status: "pending" as const },
+    { emoji: "✂️", name: "Cutting Into Scenes", progress: 0, time: "00:00", status: "pending" as const },
+    { emoji: "🖼️", name: "Matching Images", progress: 0, time: "00:00", status: "pending" as const },
+    { emoji: "🎬", name: "Rendering Video", progress: 0, time: "00:00", status: "pending" as const },
+  ]);
   const [scenes] = useState<Scene[]>([]);
   const [steps] = useState([
     { emoji: "🎙️", name: "Transcribing Audio", status: "pending" as const },
@@ -168,21 +184,16 @@ const Editor = () => {
             </div>
           </div>
 
-          {/* Stats Bar */}
-          <div className="bg-background border-t border-border px-4 py-2 grid grid-cols-4 gap-1 text-center">
-            <div><span className="text-sm font-bold text-primary">0</span><br /><span className="text-[10px] text-muted-foreground">Total</span></div>
-            <div><span className="text-sm font-bold text-muted-foreground">0</span><br /><span className="text-[10px] text-muted-foreground">Scenes</span></div>
-            <div><span className="text-sm font-bold text-success">0</span><br /><span className="text-[10px] text-muted-foreground">Done</span></div>
-            <div><span className="text-sm font-bold text-destructive">0</span><br /><span className="text-[10px] text-muted-foreground">Failed</span></div>
-          </div>
-
           {/* Action Buttons */}
           <div className="p-3 space-y-2">
             <button className="w-full py-3.5 rounded-lg bg-success text-success-foreground font-bold text-sm transition-all duration-200 hover:brightness-110">
               ▶ START GENERATION
             </button>
+            <button className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-all duration-200 hover:brightness-110">
+              📂 Load Project
+            </button>
             <button className="w-full py-3 rounded-lg bg-warning text-warning-foreground font-bold text-sm transition-all duration-200 hover:brightness-110">
-              ⏸ RESUME PROJECT
+              ⏸ Resume Project
             </button>
             <button className="w-full py-3 rounded-lg bg-destructive text-destructive-foreground font-bold text-sm transition-all duration-200 hover:brightness-110">
               ⏹ STOP
@@ -194,7 +205,7 @@ const Editor = () => {
         <div className="flex-1 flex flex-col bg-background overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-border px-4">
-            {(["progress", "logs", "scenes"] as const).map(tab => (
+            {(["progress", "logs", "scenes", "terminal"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -204,7 +215,7 @@ const Editor = () => {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {tab === "progress" ? "Progress" : tab === "logs" ? "Logs" : "Scenes"}
+                {tab === "progress" ? "Progress" : tab === "logs" ? "Logs" : tab === "scenes" ? "Scenes" : "Terminal"}
               </button>
             ))}
           </div>
@@ -325,6 +336,81 @@ const Editor = () => {
                     <p className="text-sm text-muted-foreground mt-1">Start processing to see scene list</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === "terminal" && (
+              <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ background: "#000000" }}>
+                {/* Top Info Bar */}
+                <div className="flex items-center gap-3 px-4 py-2 text-xs font-mono" style={{ background: "#111111", borderBottom: "1px solid #333333" }}>
+                  <span className="text-muted-foreground">🕐 Started: --:--:--</span>
+                  <span style={{ color: "#333333" }}>|</span>
+                  <span className="text-success">⏱ Running: 00:00:00</span>
+                  <span style={{ color: "#333333" }}>|</span>
+                  <span className="text-muted-foreground">📅 Date: 30 Mar 2026</span>
+                </div>
+
+                {/* Step Progress */}
+                <div className="px-4 pt-4 pb-3 space-y-2.5">
+                  {terminalSteps.map((step, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs text-foreground whitespace-nowrap w-[160px]">{step.emoji} {step.name}</span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#1a1a1a" }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${step.progress}%`,
+                            background: step.status === "done" ? "#23d160" : step.status === "failed" ? "#ff4757" : "#2d8cf0",
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono w-8 text-right text-primary">{step.progress}%</span>
+                      <span className="text-xs font-mono w-12 text-right text-muted-foreground">{step.time}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Overall */}
+                <div className="px-4 pb-3 border-t" style={{ borderColor: "#1a1a1a" }}>
+                  <div className="flex items-center justify-between mt-3 mb-1.5">
+                    <span className="text-xs text-foreground font-medium">Overall Project</span>
+                    <span className="text-xs text-muted-foreground">Total Time: 00:00:00</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "#1a1a1a" }}>
+                    <div className="h-full rounded-full transition-all duration-300 bg-primary" style={{ width: "0%" }} />
+                  </div>
+                  <p className="text-xs text-primary mt-1">0% Complete</p>
+                </div>
+
+                {/* Terminal Log */}
+                <div className="flex-1 flex flex-col px-4 pb-4 min-h-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground">Live Terminal Output</span>
+                    <button
+                      onClick={() => setTerminalLogs([
+                        { time: "00:00:00", message: "System initialized", type: "system" },
+                        { time: "00:00:00", message: "Ready for processing...", type: "system" },
+                      ])}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Clear Terminal
+                    </button>
+                  </div>
+                  <div className="flex-1 rounded-lg p-3 font-mono text-[13px] overflow-y-auto min-h-[200px]" style={{ background: "#0a0a0a" }}>
+                    {terminalLogs.map((log, i) => (
+                      <div key={i} className="leading-6">
+                        <span style={{ color: "#666666" }}>[{log.time}]</span>{" "}
+                        <span style={{
+                          color: log.type === "success" ? "#23d160" :
+                            log.type === "error" ? "#ff4757" :
+                            log.type === "processing" ? "#ff9f43" :
+                            log.type === "info" ? "#2d8cf0" :
+                            "#8b949e"
+                        }}>{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
