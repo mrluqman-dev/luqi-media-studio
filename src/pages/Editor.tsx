@@ -225,7 +225,7 @@ const Editor = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className={`flex-1 overflow-y-auto ${activeTab === "terminal" ? "" : "p-4"}`}>
             {activeTab === "progress" && (
               <div>
                 {/* Overall Progress */}
