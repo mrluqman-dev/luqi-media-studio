@@ -10,7 +10,8 @@ interface LogEntry {
 interface TerminalLogEntry {
   time: string;
   message: string;
-  type: "success" | "error" | "processing" | "info" | "system";
+  type: "success" | "error" | "processing" | "info" | "system" | "complete";
+  percent?: string;
 }
 
 interface Scene {
@@ -35,7 +36,10 @@ const Editor = () => {
   const [logs, setLogs] = useState<LogEntry[]>([{ time: "00:00", message: "Ready to start...", type: "default" }]);
   const [terminalLogs, setTerminalLogs] = useState<TerminalLogEntry[]>([
     { time: "00:00:00", message: "System initialized", type: "system" },
-    { time: "00:00:00", message: "Ready for processing...", type: "system" },
+    { time: "00:00:00", message: "Luqi Automation v1.0 ready", type: "system" },
+    { time: "00:00:00", message: "Groq API: Connected", type: "success" },
+    { time: "00:00:00", message: "FFmpeg: Available", type: "info" },
+    { time: "00:00:00", message: "Waiting for user input...", type: "system" },
   ]);
   const [terminalSteps] = useState<{ emoji: string; name: string; progress: number; time: string; status: "pending" | "processing" | "done" | "failed" }[]>([
     { emoji: "🎙️", name: "Transcribing Audio", progress: 0, time: "00:00", status: "pending" },
@@ -340,73 +344,88 @@ const Editor = () => {
             )}
 
             {activeTab === "terminal" && (
-              <div className="flex flex-col h-full rounded-lg overflow-hidden" style={{ background: "#000000" }}>
-                {/* Top Info Bar */}
-                <div className="flex items-center gap-3 px-4 py-2 text-xs font-mono" style={{ background: "#111111", borderBottom: "1px solid #333333" }}>
-                  <span className="text-muted-foreground">🕐 Started: --:--:--</span>
-                  <span style={{ color: "#333333" }}>|</span>
-                  <span className="text-success">⏱ Running: 00:00:00</span>
-                  <span style={{ color: "#333333" }}>|</span>
-                  <span className="text-muted-foreground">📅 Date: 30 Mar 2026</span>
+              <div className="flex flex-col h-full overflow-hidden font-mono text-xs" style={{ background: "#000000" }}>
+                {/* Sticky Top Stats Bar */}
+                <div className="flex items-center gap-3 px-3 py-1.5 shrink-0" style={{ background: "#111111", borderBottom: "1px solid #333333" }}>
+                  <span style={{ color: "#8b949e" }}>🕐 Started: --:--:--</span>
+                  <span style={{ color: "#333" }}>|</span>
+                  <span style={{ color: "#23d160" }}>⏱ Running: 00:00:00</span>
+                  <span style={{ color: "#333" }}>|</span>
+                  <span style={{ color: "#8b949e" }}>📁 Project: my_project</span>
+                  <span style={{ color: "#333" }}>|</span>
+                  <span style={{ color: "#8b949e" }}>💻 PC Time: {new Date().toLocaleTimeString("en-GB")}</span>
                 </div>
 
-                {/* Step Progress */}
-                <div className="px-4 pt-4 pb-3 space-y-2.5">
+                {/* Step Progress Bars */}
+                <div className="px-3 py-3 space-y-2 shrink-0" style={{ background: "#0a0a0a" }}>
                   {terminalSteps.map((step, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-xs text-foreground whitespace-nowrap w-[160px]">{step.emoji} {step.name}</span>
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#1a1a1a" }}>
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="whitespace-nowrap w-[150px] text-[11px]" style={{ color: "#e6edf3" }}>{step.emoji} {step.name}</span>
+                      <div className="w-[200px] h-1.5 rounded-sm overflow-hidden shrink-0" style={{ background: "#1a1a1a" }}>
                         <div
-                          className="h-full rounded-full transition-all duration-300"
+                          className="h-full transition-all duration-300"
                           style={{
                             width: `${step.progress}%`,
                             background: step.status === "done" ? "#23d160" : step.status === "failed" ? "#ff4757" : "#2d8cf0",
+                            borderRadius: "1px",
                           }}
                         />
                       </div>
-                      <span className="text-xs font-mono w-8 text-right text-primary">{step.progress}%</span>
-                      <span className="text-xs font-mono w-12 text-right text-muted-foreground">{step.time}</span>
+                      <span className="w-8 text-right" style={{ color: "#2d8cf0" }}>{step.progress}%</span>
+                      <span className="w-12 text-right" style={{ color: "#8b949e" }}>{step.time}</span>
                     </div>
                   ))}
+
+                  {/* Overall */}
+                  <div className="pt-2 mt-1" style={{ borderTop: "1px solid #1a1a1a" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="whitespace-nowrap w-[150px] text-[11px] font-medium" style={{ color: "#e6edf3" }}>Overall:</span>
+                      <div className="flex-1 h-2 rounded-sm overflow-hidden" style={{ background: "#1a1a1a" }}>
+                        <div className="h-full transition-all duration-300" style={{ width: "0%", background: "#2d8cf0", borderRadius: "1px" }} />
+                      </div>
+                      <span className="whitespace-nowrap text-[11px]" style={{ color: "#2d8cf0" }}>0% — -- mins left</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Overall */}
-                <div className="px-4 pb-3 border-t" style={{ borderColor: "#1a1a1a" }}>
-                  <div className="flex items-center justify-between mt-3 mb-1.5">
-                    <span className="text-xs text-foreground font-medium">Overall Project</span>
-                    <span className="text-xs text-muted-foreground">Total Time: 00:00:00</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "#1a1a1a" }}>
-                    <div className="h-full rounded-full transition-all duration-300 bg-primary" style={{ width: "0%" }} />
-                  </div>
-                  <p className="text-xs text-primary mt-1">0% Complete</p>
-                </div>
+                {/* Divider */}
+                <div className="shrink-0" style={{ height: "1px", background: "#333333" }} />
 
-                {/* Terminal Log */}
-                <div className="flex-1 flex flex-col px-4 pb-4 min-h-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Live Terminal Output</span>
+                {/* Live Log Section */}
+                <div className="flex-1 flex flex-col min-h-0 px-3 pt-2 pb-3">
+                  <div className="flex items-center justify-between mb-1.5 shrink-0">
+                    <span className="text-[11px]" style={{ color: "#8b949e" }}>📋 Live Terminal Output</span>
                     <button
                       onClick={() => setTerminalLogs([
                         { time: "00:00:00", message: "System initialized", type: "system" },
-                        { time: "00:00:00", message: "Ready for processing...", type: "system" },
+                        { time: "00:00:00", message: "Luqi Automation v1.0 ready", type: "system" },
+                        { time: "00:00:00", message: "Groq API: Connected", type: "success" },
+                        { time: "00:00:00", message: "FFmpeg: Available", type: "info" },
+                        { time: "00:00:00", message: "Waiting for user input...", type: "system" },
                       ])}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-[11px] hover:brightness-150 transition-all"
+                      style={{ color: "#8b949e" }}
                     >
-                      Clear Terminal
+                      Clear
                     </button>
                   </div>
-                  <div className="flex-1 rounded-lg p-3 font-mono text-[13px] overflow-y-auto min-h-[200px]" style={{ background: "#0a0a0a" }}>
+                  <div className="flex-1 overflow-y-auto rounded p-2 text-[12px]" style={{ background: "#000000" }}>
                     {terminalLogs.map((log, i) => (
-                      <div key={i} className="leading-6">
-                        <span style={{ color: "#666666" }}>[{log.time}]</span>{" "}
-                        <span style={{
-                          color: log.type === "success" ? "#23d160" :
-                            log.type === "error" ? "#ff4757" :
-                            log.type === "processing" ? "#ff9f43" :
-                            log.type === "info" ? "#2d8cf0" :
-                            "#8b949e"
-                        }}>{log.message}</span>
+                      <div key={i} className="leading-5 flex justify-between">
+                        <span>
+                          <span style={{ color: "#666666" }}>[{log.time}]</span>{" "}
+                          <span style={{
+                            color: log.type === "success" ? "#23d160" :
+                              log.type === "error" ? "#ff4757" :
+                              log.type === "processing" ? "#ff9f43" :
+                              log.type === "info" ? "#2d8cf0" :
+                              log.type === "complete" ? "#7c3aed" :
+                              "#8b949e"
+                          }}>{log.message}</span>
+                        </span>
+                        {log.percent && (
+                          <span style={{ color: "#2d8cf0" }}>{log.percent}</span>
+                        )}
                       </div>
                     ))}
                   </div>
